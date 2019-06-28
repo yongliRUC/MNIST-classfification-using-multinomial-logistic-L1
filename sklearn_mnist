@@ -1,0 +1,55 @@
+import time     #计算时间
+import matplotlib.pyplot as plt     #引入matplotlib库
+import numpy as np      #引入numpy库
+
+#导入模块
+from sklearn.datasets import fetch_openml   #引入fetch_openml库
+from sklearn.linear_model import LogisticRegression     #逻辑回归
+from sklearn.model_selection import train_test_split    #划分数据集
+from sklearn.preprocessing import StandardScaler    #　StandardScaler计算训练集的平均值和标准差，以便测试数据及使用相同的变换
+from sklearn.utils import check_random_state
+
+print(__doc__)
+
+
+t0 = time.time()
+train_samples = 5000    #训练样本
+
+X, y = fetch_openml('mnist_784', version=1, return_X_y=True)
+
+random_state = check_random_state(0)    #random_state随机种子数
+permutation = random_state.permutation(X.shape[0])
+x = X[permutation]
+y = y[permutation]
+x = x.reshape((x.shape[0], -1))
+
+x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=train_samples, test_size=10000)    #用train_test_split来随机划分数据集
+scaler = StandardScaler()#数据标准化
+x_train = scaler.fit_transform(x_train)
+x_test = scaler.transform(x_test)   #不仅计算训练数据的均值和方差，还会基于计算出来的均值和方差来转换训练数据，从而把数据转化成标准的正态分布
+#逻辑回归
+clf = LogisticRegression(C=50. / train_samples,
+                         multi_class= 'multinomial',
+                         penalty='l1', solver='saga',tol=0.1)   # C：正则化强度的反，值越小正则化强度越大；penalty：使用指定正则化项（默认：l2）
+clf.fit(x_train, y_train)
+sparsity = np.mean(clf.coef_==0) *100
+score = clf.score(x_test,y_test)
+
+print("Sparsity with L1 penalty: %.2f%%" % sparsity)    #打印具有L1惩罚的稀疏度
+print("Test score with L1 penalty: %.4f" % score)   #打印具有L1惩罚的测试得分
+
+coef = clf.coef_.copy()
+plt.figure(figsize=(10, 5))
+scale = np.abs(coef).max()
+for i in range(10):
+    l1_plot = plt.subplot(2, 5, i + 1)
+    l1_plot.imshow(coef[i].reshape(28, 28), interpolation='nearest',
+                   cmap=plt.cm.RdBu, vmin= -scale, vmax=scale)
+    l1_plot.set_xticks(())
+    l1_plot.set_yticks(())
+    l1_plot.set_xlabel('Class %i' % i)
+plt.suptitle('Classification vector for...')
+
+run_time = time.time() - t0
+print('Example run in %.3f s' % run_time)
+plt.show()
